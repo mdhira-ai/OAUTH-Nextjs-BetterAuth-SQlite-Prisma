@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -80,6 +82,42 @@ export function SocketProvider({
         setUsers(updatedUsers);
       });
 
+      socketInstance.on("notification", (data: any) => {
+
+
+
+
+        const message = `${data.message} from ${data.from}`;
+        toast.info(message, {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+        });
+
+        // play a sound notification until the notification is closed
+        try {
+          const audio = new Audio('/sound/notification.mp3');
+          audio.play().catch(err => {
+            console.error("Failed to play notification sound:", err);
+          });
+          audio.loop = true; // Loop the sound
+          setTimeout(() => {
+            audio.pause();
+            audio.currentTime = 0; // Reset the sound to the beginning
+          }, 5000);
+
+        } catch (err) {
+          console.error("Failed to play notification sound:", err);
+        } 
+
+      });
+
+
       socketInstance.on("disconnect", (reason) => {
         console.log("Socket disconnected:", reason);
         setIsConnected(false);
@@ -109,6 +147,8 @@ export function SocketProvider({
         console.warn("Socket reconnection failed - giving up");
         setError("Connection failed: Unable to reach server");
       });
+
+
 
       setSocket(socketInstance);
     } catch (err) {

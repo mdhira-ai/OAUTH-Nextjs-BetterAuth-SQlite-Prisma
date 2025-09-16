@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import { SocketProvider } from "./lib/socket-context";
+import { ToastContainer } from "react-toastify";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,6 +25,36 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  // const { socket } = useSocket();
+
+  // when i get a toast notification from socket "notification", show a toast
+  // useEffect(() => {
+    
+  //   if (socket) {
+  //     socket.on("notification", (data: any) => {
+  //       const message = `${data.message} from ${data.from}`;
+  //       toast.info(message, {
+  //         position: "top-right",
+  //         autoClose: 5000,
+  //         hideProgressBar: false,
+  //         closeOnClick: true,
+  //         pauseOnHover: true,
+  //         draggable: true,
+  //         progress: undefined,
+  //         theme: "light",
+  //       });
+  //     });
+  //   }
+  //   return () => {
+  //     if (socket) {
+  //       socket.off("notification");
+  //     }
+  //   };
+  // }, [socket]);  
+
+
+
   return (
     <html lang="en" suppressHydrationWarning >
       <body
@@ -35,6 +66,7 @@ export default function RootLayout({
           enabled={true} // Disable until you have a socket server running
         >
           <Navbar/>
+          <ToastContainer />
           {children}
         </SocketProvider>
       </body>

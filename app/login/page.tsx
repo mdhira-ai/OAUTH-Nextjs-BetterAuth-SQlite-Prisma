@@ -22,7 +22,7 @@ function page() {
         if (session) {
             router.replace("/dashboard"); // Use replace instead of push
         }
-    }, [session, router]);
+    }, [session, router]);  
 
     // Show loading while checking session
     if (isPending) {
