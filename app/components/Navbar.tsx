@@ -3,9 +3,11 @@ import Link from "next/link";
 import { signOut } from "@/app/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/app/lib/auth-client"; // import the auth client
+import { useSocket } from "../lib/socket-context";
 
 function Navbar() {
   const router = useRouter();
+  const { socket, isConnected, error: socketError } = useSocket();
 
   const {
     data: session,
@@ -41,11 +43,29 @@ function Navbar() {
     <nav className="bg-gray-800 p-4">
       <div className="container mx-auto flex items-center justify-between">
         <div className="text-white font-bold text-xl">
+        <div>
+          {
+            socket?.id
+          }
+          <div
+            className={`text-md ${
+              isConnected ? "text-green-400" : "text-red-400"
+            }`}
+          >
+            {isConnected ? "Online" : "Offline"}
+          </div>
+        </div>
           <Link href="/">Logo</Link>
         </div>
         <ul className="flex space-x-6">
           {session && !isPending ? (
             <>
+              <li>
+                <span className="text-gray-300">
+                  {session.user?.email || "No Email"}
+                </span>
+              </li>
+
               <li>
                 <Link href="/" className="text-gray-300 hover:text-white">
                   Home
