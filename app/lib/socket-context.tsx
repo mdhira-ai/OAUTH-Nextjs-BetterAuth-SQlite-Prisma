@@ -10,12 +10,16 @@ interface SocketContextType {
   isConnected: boolean;
   error: string | null;
   users: User[];
+  audioEnabled: boolean;
+  enableAudio: () => Promise<void>;
 }
 const SocketContext = createContext<SocketContextType>({
   socket: null,
   isConnected: false,
   error: null,
   users: [],
+  audioEnabled: false,
+  enableAudio: async () => {},
 });
 
 
@@ -43,6 +47,49 @@ export function SocketProvider({
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioInstance, setAudioInstance] = useState<HTMLAudioElement | null>(null);
+
+  // Function to enable audio notifications (requires user interaction)
+  const enableAudio = async (): Promise<void> => {
+    try {
+      const audio = new Audio('/sound/notification.mp3');
+      // Try to play and immediately pause to test if audio is allowed
+      await audio.play();
+      audio.pause();
+      audio.currentTime = 0;
+      setAudioInstance(audio);
+      setAudioEnabled(true);
+      console.log('Audio notifications enabled');
+    } catch (error) {
+      console.warn('Failed to enable audio notifications:', error);
+      setAudioEnabled(false);
+      throw error;
+    }
+  };
+
+  // Function to play notification sound
+  const playNotificationSound = () => {
+    if (!audioEnabled || !audioInstance) {
+      console.log('Audio not enabled or not available');
+      return;
+    }
+
+    try {
+      // Clone the audio to allow multiple simultaneous plays
+      const audio = audioInstance.cloneNode() as HTMLAudioElement;
+      audio.play().catch(err => {
+        console.error("Failed to play notification sound:", err);
+      });
+      audio.loop = true;
+      setTimeout(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }, 5000);
+    } catch (err) {
+      console.error("Failed to play notification sound:", err);
+    }
+  };
 
 
   useEffect(() => {
@@ -83,10 +130,6 @@ export function SocketProvider({
       });
 
       socketInstance.on("notification", (data: any) => {
-
-
-
-
         const message = `${data.message} from ${data.from}`;
         toast.info(message, {
           position: "top-right",
@@ -99,22 +142,8 @@ export function SocketProvider({
           theme: "light",
         });
 
-        // play a sound notification until the notification is closed
-        try {
-          const audio = new Audio('/sound/notification.mp3');
-          audio.play().catch(err => {
-            console.error("Failed to play notification sound:", err);
-          });
-          audio.loop = true; // Loop the sound
-          setTimeout(() => {
-            audio.pause();
-            audio.currentTime = 0; // Reset the sound to the beginning
-          }, 5000);
-
-        } catch (err) {
-          console.error("Failed to play notification sound:", err);
-        } 
-
+        // Play notification sound if audio is enabled
+        playNotificationSound();
       });
 
 
@@ -174,6 +203,8 @@ export function SocketProvider({
     isConnected,
     error,
     users,
+    audioEnabled,
+    enableAudio,
   };
 
   return (
