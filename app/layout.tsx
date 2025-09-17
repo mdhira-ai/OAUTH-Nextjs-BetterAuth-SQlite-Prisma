@@ -26,33 +26,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
 
-  // const { socket } = useSocket();
-
-  // when i get a toast notification from socket "notification", show a toast
-  // useEffect(() => {
-    
-  //   if (socket) {
-  //     socket.on("notification", (data: any) => {
-  //       const message = `${data.message} from ${data.from}`;
-  //       toast.info(message, {
-  //         position: "top-right",
-  //         autoClose: 5000,
-  //         hideProgressBar: false,
-  //         closeOnClick: true,
-  //         pauseOnHover: true,
-  //         draggable: true,
-  //         progress: undefined,
-  //         theme: "light",
-  //       });
-  //     });
-  //   }
-  //   return () => {
-  //     if (socket) {
-  //       socket.off("notification");
-  //     }
-  //   };
-  // }, [socket]);  
-
 
 
   return (
@@ -62,7 +35,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SocketProvider 
-          serverUrl="https://mysocket-server.onrender.com/" 
+          serverUrl="http://localhost:3001"
           enabled={true} // Disable until you have a socket server running
         >
           <Navbar/>

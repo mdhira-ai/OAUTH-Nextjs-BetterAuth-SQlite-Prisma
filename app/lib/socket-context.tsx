@@ -4,22 +4,27 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useSession } from "./auth-client";
 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
   error: string | null;
-  users: User[];
+  onlineAuthUsers: SocketUser[];
+  currentUser: SocketUser | null;
   audioEnabled: boolean;
   enableAudio: () => Promise<void>;
+  updateCurrentPage: (page: string) => void;
 }
 const SocketContext = createContext<SocketContextType>({
   socket: null,
   isConnected: false,
   error: null,
-  users: [],
+  onlineAuthUsers: [],
+  currentUser: null,
   audioEnabled: false,
-  enableAudio: async () => {},
+  enableAudio: async () => { },
+  updateCurrentPage: () => { },
 });
 
 
@@ -31,11 +36,28 @@ interface SocketProviderProps {
 
 interface User {
   id: number;
-  status: number; // 0 = offline, 1 = online, 2 = away
+  status: string; // 0 = offline, 1 = online, 2 = away
   which_page: string;
   socket_id: string;
   connected_at: string;
+  email: string;
+  name: string;
 }
+
+interface SocketUser {
+  id: number;
+  created_at: string;
+  socket_id: string;
+  email: string | null;
+  session_id: string | null;
+  name: string | null;
+  connect_at: string | null;
+  which_page: string | null;
+  status: string; // 'online' | 'offline'
+  group: string; // 'auth_user' | 'anonymous'
+}
+
+
 
 
 export function SocketProvider({
@@ -46,9 +68,16 @@ export function SocketProvider({
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [onlineAuthUsers, setOnlineAuthUsers] = useState<SocketUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<SocketUser | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioInstance, setAudioInstance] = useState<HTMLAudioElement | null>(null);
+
+  // check the user is logged in
+  const { data: session, error: sessionError, isPending } = useSession();
+
+
+
 
   // Function to enable audio notifications (requires user interaction)
   const enableAudio = async (): Promise<void> => {
@@ -68,7 +97,12 @@ export function SocketProvider({
     }
   };
 
-  // Function to play notification sound
+  // Function to update current page
+  const updateCurrentPage = (page: string) => {
+    if (socket && isConnected) {
+      socket.emit('page_change', { page });
+    }
+  };
   const playNotificationSound = () => {
     if (!audioEnabled || !audioInstance) {
       console.log('Audio not enabled or not available');
@@ -117,17 +151,36 @@ export function SocketProvider({
         console.log("Socket connected:", socketInstance?.id);
         setIsConnected(true);
         setError(null);
+        
+        // Join user with authentication data
+        const userData = {
+          email: session?.user?.email || null,
+          session_id: session?.user?.id || null,
+          name: session?.user?.name || null,
+          which_page: window.location.pathname
+        };
+        
+        socketInstance?.emit('user_join', userData);
       });
 
-      socketInstance.on('users_list', (usersList: User[]) => {
-        console.log('Received users list:', usersList);
-        setUsers(usersList);
+      // Listen for user connection confirmation
+      socketInstance.on('user_connected', (userRecord: SocketUser) => {
+        console.log('User connected successfully:', userRecord);
+        setCurrentUser(userRecord);
       });
 
-      socketInstance.on('users_status_update', (updatedUsers: User[]) => {
-        console.log('Users status updated:', updatedUsers);
-        setUsers(updatedUsers);
+      // Listen for online auth users updates
+      socketInstance.on('online_users_updated', (onlineUsers: SocketUser[]) => {
+        console.log('Online auth users updated:', onlineUsers);
+        setOnlineAuthUsers(onlineUsers);
       });
+
+      
+
+
+
+
+
 
       socketInstance.on("notification", (data: any) => {
         const message = `${data.message} from ${data.from}`;
@@ -189,22 +242,29 @@ export function SocketProvider({
     return () => {
       if (socketInstance) {
         console.log("Cleaning up socket connection");
+        // Notify server that user is going offline
+        socketInstance.emit('user_offline');
         socketInstance.removeAllListeners();
         socketInstance.disconnect();
         setSocket(null);
         setIsConnected(false);
         setError(null);
+        setCurrentUser(null);
+        setOnlineAuthUsers([]);
       }
     };
-  }, [serverUrl, enabled]);
+  }, [serverUrl, enabled, session]); // Add session as dependency
+
 
   const value: SocketContextType = {
     socket,
     isConnected,
     error,
-    users,
+    onlineAuthUsers,
+    currentUser,
     audioEnabled,
     enableAudio,
+    updateCurrentPage,
   };
 
   return (

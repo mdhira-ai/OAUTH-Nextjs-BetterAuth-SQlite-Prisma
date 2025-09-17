@@ -1,13 +1,22 @@
 "use client";
 
 import { useSocket, useSocketEmit, useSocketListener } from "../lib/socket-context";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSession } from "../lib/auth-client";
 
 export default function SocketExample() {
-  const { socket, isConnected, error, audioEnabled, enableAudio } = useSocket();
+  const { socket, isConnected, error, audioEnabled, enableAudio, onlineAuthUsers, currentUser, updateCurrentPage } = useSocket();
   const { emit } = useSocketEmit();
+  const { data: session } = useSession();
   const [message, setMessage] = useState("");
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
+
+  // Update current page when component mounts or route changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      updateCurrentPage(window.location.pathname);
+    }
+  }, [updateCurrentPage]);
 
   // Listen for incoming messages
   const handleMessage = useCallback((data: any) => {
@@ -16,6 +25,9 @@ export default function SocketExample() {
 
   useSocketListener("message", handleMessage);
   useSocketListener("welcome", handleMessage);
+  useSocketListener("error", (error: any) => {
+    setReceivedMessages(prev => [...prev, `Error: ${error.message}`]);
+  });
 
   const handleEnableAudio = async () => {
     try {
@@ -35,11 +47,11 @@ export default function SocketExample() {
   };
 
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Socket.IO Client Example</h2>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold mb-4">Socket.IO Client - User Status System</h2>
       
       {/* Connection Status */}
-      <div className="mb-4">
+      <div className="mb-6">
         {socket === null && !error ? (
           <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600">
             <div className="w-2 h-2 rounded-full mr-2 bg-gray-400"></div>
@@ -67,6 +79,64 @@ export default function SocketExample() {
             <strong>Info:</strong> {error}
             <br />
             <span className="text-xs">Start the socket server to enable real-time features.</span>
+          </div>
+        )}
+      </div>
+
+      {/* Current User Info */}
+      {currentUser && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <h3 className="text-lg font-semibold mb-2">Your Status</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div><strong>Name:</strong> {currentUser.name || 'Anonymous'}</div>
+            <div><strong>Email:</strong> {currentUser.email || 'N/A'}</div>
+            <div><strong>Group:</strong> {currentUser.group}</div>
+            <div><strong>Status:</strong> {currentUser.status}</div>
+            <div><strong>Current Page:</strong> {currentUser.which_page || 'N/A'}</div>
+            <div><strong>Connected At:</strong> {currentUser.connect_at ? new Date(currentUser.connect_at).toLocaleTimeString() : 'N/A'}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Authentication Status */}
+      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+        <h3 className="text-lg font-semibold mb-2">Authentication Status</h3>
+        {session?.user ? (
+          <div className="text-sm">
+            <div><strong>Logged in as:</strong> {session.user.name || session.user.email}</div>
+            <div><strong>User Type:</strong> Authenticated User</div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-600">
+            <div><strong>Status:</strong> Anonymous User</div>
+          </div>
+        )}
+      </div>
+
+      {/* Online Auth Users */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-3">Online Authenticated Users ({onlineAuthUsers.length})</h3>
+        {onlineAuthUsers.length === 0 ? (
+          <p className="text-gray-500 text-sm italic">No authenticated users online</p>
+        ) : (
+          <div className="grid gap-3">
+            {onlineAuthUsers.map((user) => (
+              <div key={user.id} className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                    <div>
+                      <div className="font-medium">{user.name || 'Anonymous'}</div>
+                      <div className="text-sm text-gray-600">{user.email}</div>
+                    </div>
+                  </div>
+                  <div className="text-right text-sm text-gray-500">
+                    <div>Page: {user.which_page || 'Unknown'}</div>
+                    <div>Online since: {user.connect_at ? new Date(user.connect_at).toLocaleTimeString() : 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

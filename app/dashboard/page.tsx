@@ -3,13 +3,15 @@ import { useSession } from "@/app/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Loading from "./loading";
-import { useSocket } from "../lib/socket-context";
+import { useSocket, useSocketListener } from "../lib/socket-context";
+import { toast } from "react-toastify";
 
 function page() {
 
     const router = useRouter();
-    const { socket, isConnected, error: socketError, users } = useSocket();
     const [friends, setFriends] = useState<any[]>([]);
+    const { socket, isConnected, error: socketError, audioEnabled, enableAudio, onlineAuthUsers, currentUser, updateCurrentPage } = useSocket();
+    const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
 
     const {
         data: session,
@@ -18,8 +20,23 @@ function page() {
     } = useSession();
 
 
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            updateCurrentPage(window.location.pathname);
+        }
+    }, [updateCurrentPage]);
+
+    useSocketListener("error", (error: any) => {
+        setReceivedMessages(prev => [...prev, `Error: ${error.message}`]);
+    });
 
 
+    useSocketListener("poke_from", (data: any) => {
+        toast.info(`You got a poke from ${data.fromName}! and email is ${data.fromEmail}`, {
+            position: "top-right", autoClose: 5000, hideProgressBar: false, closeOnClick: true, pauseOnHover: true, draggable: true, progress: undefined,
+        });
+
+    });
 
 
 
@@ -38,6 +55,15 @@ function page() {
         return <Loading />;
     }
 
+    const sendPoke = (userId: string) => {
+        if (socket && isConnected) {
+            socket.emit("poke", { to: userId });
+            // setReceivedMessages(prev => [...prev, `Poked user ID: ${userId}`]);
+        } else {
+            console.warn("Socket is not connected. Cannot send poke.");
+        }
+    };
+
 
 
 
@@ -48,109 +74,70 @@ function page() {
         <div className="min-h-screen bg-gray-100 p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
 
-                <div className="bg-white shadow-md rounded-lg p-8 w-full max-w-md">
-                    <h1 className="text-2xl font-bold mb-4 text-gray-800">Dashboard</h1>
-
-                    {
-                        error && (
-                            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                                Error: {error.message}
-                            </div>
-                        )
-                    }
-                    <p className="text-gray-600">Welcome to your dashboard! This is a basic test page using Tailwind CSS.</p>
-                    <div className="mt-4">
-                        <h2 className="text-lg font-semibold mb-2 text-gray-800">User Information</h2>
+                {/* Current User Info */}
+                {currentUser && (
+                    <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <h3 className="text-lg font-semibold mb-2">Your Status</h3>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div><strong>Name:</strong> {currentUser.name || 'Anonymous'}</div>
+                            <div><strong>Email:</strong> {currentUser.email || 'N/A'}</div>
+                            <div><strong>Group:</strong> {currentUser.group}</div>
+                            <div><strong>Status:</strong> {currentUser.status}</div>
+                            <div><strong>Current Page:</strong> {currentUser.which_page || 'N/A'}</div>
+                            <div><strong>Connected At:</strong> {currentUser.connect_at ? new Date(currentUser.connect_at).toLocaleTimeString() : 'N/A'}</div>
+                        </div>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded shadow-sm">
-                        <p><strong>Name:</strong> {session.user?.name || "N/A"}</p>
-                        <p><strong>Email:</strong> {session.user?.email || "N/A"}</p>
+                )}
 
-                    </div>
-
-                    <div className="mt-6">
-                        <h1>socket status</h1>
-                        {socketError && (
-                            <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
-                                Socket Error: {socketError} <br />
-                                <span className="text-xs">Start the socket server to enable real-time features.</span>
-                            </div>
-                        )}
-                        <p>Socket is {isConnected ? "connected" : "disconnected"}</p>
-                        {socket && <p>Socket ID: {socket.id}</p>}
-                    </div>
-
-
-
+                {/* Authentication Status */}
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 className="text-lg font-semibold mb-2">Authentication Status</h3>
+                    {session?.user ? (
+                        <div className="text-sm">
+                            <div><strong>Logged in as:</strong> {session.user.name || session.user.email}</div>
+                            <div><strong>User Type:</strong> Authenticated User</div>
+                        </div>
+                    ) : (
+                        <div className="text-sm text-gray-600">
+                            <div><strong>Status:</strong> Anonymous User</div>
+                        </div>
+                    )}
                 </div>
 
-
-                {/* Online Users */}
-                <div className="bg-white shadow-md rounded-lg p-8 w-full max-w-md">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-gray-800">Online Users</h2>
-                        <span className="bg-green-100 text-green-800 text-sm px-2 py-1 rounded-full">
-                            {users.length}
-                        </span>
-                    </div>
-                    <div className="space-y-3 h-96 overflow-y-auto">
-                        {users ? (
-                            users.map((user) => (
-                                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex items-center space-x-3">
-                                        <div className={`w-3 h-3 rounded-full ${user.status}`}></div>
-                                        <div>
-                                            <p className="text-sm text-gray-500">ID: {user.socket_id}</p>
+                {/* Online Auth Users */}
+                <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3">Online Authenticated Users ({onlineAuthUsers.length})</h3>
+                    {onlineAuthUsers.length === 0 ? (
+                        <p className="text-gray-500 text-sm italic">No authenticated users online</p>
+                    ) : (
+                        <div className="grid gap-3">
+                            {onlineAuthUsers.map((user) => (
+                                <div key={user.id} className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                                            <div>
+                                                <div className="font-medium">{user.name || 'Anonymous'}</div>
+                                                <div className="text-sm text-gray-600">{user.email}</div>
+                                            </div>
                                         </div>
+                                        <div className="text-right text-sm text-gray-500">
+                                            <div>Page: {user.which_page || 'Unknown'}</div>
+                                            <div>Online since: {user.connect_at ? new Date(user.connect_at).toLocaleTimeString() : 'N/A'}</div>
+                                        </div>
+                                        {/* add a button to send poke */}
+                                        <button
+                                            onClick={() => sendPoke(user.socket_id)}
+                                            className="ml-4 px-2 py-1 text-xs font-semibold text-white bg-blue-500 rounded hover:bg-blue-600"
+                                        >
+                                            Send Poke
+                                        </button>
+
                                     </div>
-                                    <div className="text-sm text-gray-500">
-                                        {new Date(user.connected_at).toLocaleTimeString()}
-                                    </div>
-
-                                    {
-                                        user.status === 1 ? (
-                                            <>
-                                                <div className="text-sm text-green-600 font-semibold">Online</div>
-
-                                                {/* // add a button to send notify event to this user */}
-
-                                                {
-                                                    socket?.id === user.socket_id ? (
-                                                        null
-                                                    ) : (
-                                                        <>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (socket) {
-                                                                        socket.emit("notify", {
-                                                                            toSocketId: user.socket_id,
-                                                                        });
-                                                                    }
-                                                                }}
-                                                                className="ml-2 text-sm h-10 bg-amber-500 w-12 
-                                                    text-white hover:bg-amber-700 rounded-lg font-semibold flex items-center justify-center"
-                                                            >
-                                                                Notify
-                                                            </button>
-                                                        </>
-
-
-                                                    )}                                           
-                                            </>
-                                                    )   
-                                                : (
-                                                    <div className="text-sm text-red-600 font-semibold">Offline</div>
-                                            )
-                                    }
-
                                 </div>
-                            ))
-                        ) : (
-                            <p className="text-gray-500 text-center py-4">No users online</p>
-                        )}
-                    </div>
-
-
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
