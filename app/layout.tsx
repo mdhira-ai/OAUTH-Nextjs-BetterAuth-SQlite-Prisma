@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
-import { SocketProvider } from "./lib/socket-context";
+import { PresenceProvider } from "./lib/presence-context";
 import { ToastContainer } from "react-toastify";
 
 const geistSans = Geist({
@@ -34,14 +34,11 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SocketProvider 
-          serverUrl="http://localhost:3001"
-          enabled={true} // Disable until you have a socket server running
-        >
+        <PresenceProvider>
           <Navbar/>
           <ToastContainer />
           {children}
-        </SocketProvider>
+        </PresenceProvider>
       </body>
     </html>
   );

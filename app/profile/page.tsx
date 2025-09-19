@@ -3,11 +3,9 @@ import { useSession } from "@/app/lib/auth-client"; // import the auth client
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Loading from "./loading";
-import { useSocket } from "../lib/socket-context";
 
 function page() {
     const router = useRouter();
-    const { socket } = useSocket();
 
     const {
         data: session,
