@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Loading from "./loading";
 import { usePresence } from "../lib/presence-context";
 import { toast } from "react-toastify";
+import { on } from "events";
 
 function page() {
 
@@ -60,7 +61,14 @@ function page() {
                             </span>
                         </div>
                         <div><strong>Current Page:</strong> Dashboard</div>
-                        <div><strong>Connected At:</strong> {new Date().toLocaleTimeString()}</div>
+                        <div><strong>Connected At:</strong> 
+                        {
+                            onlineUsers.find(u => u.user_id === session.user.id)?.online_at 
+                                ? new Date(onlineUsers.find(u => u.user_id === session.user.id)!.online_at).toLocaleString()
+                                : 'Not connected'
+                        }
+                        
+                        </div>
                     </div>
                 </div>
 

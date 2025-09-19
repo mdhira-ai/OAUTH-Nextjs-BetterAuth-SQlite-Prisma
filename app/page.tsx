@@ -6,7 +6,7 @@ import { useSession } from '@/app/lib/auth-client';
 function page() {
     const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
     const [audioEnabled, setAudioEnabled] = useState(false);
-    const { isOnline, onlineUsers, userCount, isLoading, error, dbPresenceUsers, refreshDbPresence } = usePresence();
+    const { isOnline, onlineUsers, userCount, isLoading, error } = usePresence();
     const { data: session } = useSession();
 
     const handleEnableAudio = async () => {
@@ -75,7 +75,7 @@ function page() {
                 {/* Database Presence Data */}
                 {session && (
                     <div className="mb-6 p-4 bg-purple-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
+                        {/* <div className="flex items-center justify-between mb-2">
                             <h3 className="text-md font-semibold text-gray-800">Database Presence Records</h3>
                             <button
                                 onClick={refreshDbPresence}
@@ -83,13 +83,13 @@ function page() {
                             >
                                 Refresh
                             </button>
-                        </div>
-                        {dbPresenceUsers.length > 0 ? (
+                        </div> */}
+                        {userCount > 0 ? (
                             <div className="space-y-2">
-                                {dbPresenceUsers.slice(0, 5).map((user) => (
-                                    <div key={user.id} className="flex items-center justify-between text-sm bg-white p-2 rounded">
+                                {onlineUsers.slice(0, 5).map((user) => (
+                                    <div key={user.user_id} className="flex items-center justify-between text-sm bg-white p-2 rounded">
                                         <div>
-                                            <span className="font-medium">User: {user.userId.slice(0, 8)}...</span>
+                                            <span className="font-medium">User: {user.user_id.slice(0, 8)}...</span>
                                             <span className={`ml-2 px-2 py-1 rounded text-xs ${
                                                 user.isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                                             }`}>
@@ -97,13 +97,13 @@ function page() {
                                             </span>
                                         </div>
                                         <div className="text-xs text-gray-500">
-                                            {new Date(user.lastSeen).toLocaleString()}
+                                            {new Date(user.online_at).toLocaleString()}
                                         </div>
                                     </div>
                                 ))}
-                                {dbPresenceUsers.length > 5 && (
+                                {onlineUsers.length > 5 && (
                                     <p className="text-xs text-gray-500">
-                                        ...and {dbPresenceUsers.length - 5} more records
+                                        ...and {onlineUsers.length - 5} more records
                                     </p>
                                 )}
                             </div>
